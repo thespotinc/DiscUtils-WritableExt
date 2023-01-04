@@ -28,7 +28,7 @@ namespace DiscUtils.Ext;
 /// Feature flags for features backwards compatible with read-only mounting.
 /// </summary>
 [Flags]
-internal enum IncompatibleFeatures : ushort
+public enum IncompatibleFeatures : ushort
 {
     /// <summary>
     /// File compression used (not used in mainline?).

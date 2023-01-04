@@ -28,7 +28,7 @@ namespace DiscUtils.Ext;
 /// Feature flags for backwards compatible features.
 /// </summary>
 [Flags]
-internal enum CompatibleFeatures : ushort
+public enum CompatibleFeatures : ushort
 {
     /// <summary>
     /// Indicates pre-allocation hints are present.

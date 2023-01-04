@@ -25,7 +25,7 @@ using DiscUtils.Streams;
 
 namespace DiscUtils.Ext;
 
-internal class SuperBlock : IByteArraySerializable
+public class SuperBlock : IByteArraySerializable
 {
     public const ushort Ext2Magic = 0xEF53;
 

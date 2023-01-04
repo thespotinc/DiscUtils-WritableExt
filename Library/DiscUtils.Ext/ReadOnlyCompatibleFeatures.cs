@@ -28,7 +28,7 @@ namespace DiscUtils.Ext;
 /// Feature flags for features backwards compatible with read-only mounting.
 /// </summary>
 [Flags]
-internal enum ReadOnlyCompatibleFeatures : ushort
+public enum ReadOnlyCompatibleFeatures : ushort
 {
     /// <summary>
     /// Indicates that not all block groups contain a backup superblock.

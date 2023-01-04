@@ -38,7 +38,9 @@ public sealed class ExtFileSystem : VfsFileSystemFacade, IUnixFileSystem, IAlloc
     /// </summary>
     /// <param name="stream">The stream containing the ext file system.</param>
     public ExtFileSystem(Stream stream)
-        : base(new VfsExtFileSystem(stream, null)) {}
+        : base(new VfsExtFileSystem(stream, null))
+    {
+    }
 
     /// <summary>
     /// Initializes a new instance of the ExtFileSystem class.
@@ -46,7 +48,9 @@ public sealed class ExtFileSystem : VfsFileSystemFacade, IUnixFileSystem, IAlloc
     /// <param name="stream">The stream containing the ext file system.</param>
     /// <param name="parameters">The generic file system parameters (only file name encoding is honoured).</param>
     public ExtFileSystem(Stream stream, FileSystemParameters parameters)
-        : base(new VfsExtFileSystem(stream, parameters)) {}
+        : base(new VfsExtFileSystem(stream, parameters))
+    {
+    }
 
     /// <summary>
     /// Retrieves Unix-specific information about a file or directory.
@@ -59,6 +63,13 @@ public sealed class ExtFileSystem : VfsFileSystemFacade, IUnixFileSystem, IAlloc
 
     public IEnumerable<StreamExtent> EnumerateAllocationExtents(string path) =>
         GetRealFileSystem<VfsExtFileSystem>().EnumerateAllocationExtents(path);
+
+    public SuperBlock SuperBlock => GetRealFileSystem<VfsExtFileSystem>().SuperBlock;
+
+    public long GetInodePosition(uint inodeNum)
+    {
+        return GetRealFileSystem<VfsExtFileSystem>().GetInodePosition(inodeNum);
+    }
 
     internal static bool Detect(Stream stream)
     {

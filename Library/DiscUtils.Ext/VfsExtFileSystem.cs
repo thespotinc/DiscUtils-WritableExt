@@ -29,7 +29,8 @@ using DiscUtils.Vfs;
 
 namespace DiscUtils.Ext;
 
-internal sealed class VfsExtFileSystem : VfsReadOnlyFileSystem<DirEntry, File, Directory, Context>, IUnixFileSystem, IAllocationExtentsEnumerable
+internal sealed class VfsExtFileSystem : VfsFileSystem<DirEntry, File, Directory, Context>, IUnixFileSystem,
+    IAllocationExtentsEnumerable
 {
     public override bool IsCaseSensitive => true;
 
@@ -48,7 +49,7 @@ internal sealed class VfsExtFileSystem : VfsReadOnlyFileSystem<DirEntry, File, D
         stream.Position = 1024;
 
         Span<byte> superblockData = stackalloc byte[1024];
-        
+
         StreamUtilities.ReadExact(stream, superblockData);
 
         var superblock = new SuperBlock();
@@ -66,7 +67,8 @@ internal sealed class VfsExtFileSystem : VfsReadOnlyFileSystem<DirEntry, File, D
 
         if ((superblock.IncompatibleFeatures & ~SupportedIncompatibleFeatures) != 0)
         {
-            throw new IOException($"Incompatible ext features present: {superblock.IncompatibleFeatures & ~SupportedIncompatibleFeatures}");
+            throw new IOException(
+                $"Incompatible ext features present: {superblock.IncompatibleFeatures & ~SupportedIncompatibleFeatures}");
         }
 
         Context = new Context
@@ -109,10 +111,15 @@ internal sealed class VfsExtFileSystem : VfsReadOnlyFileSystem<DirEntry, File, D
         get { return "EXT-family"; }
     }
 
+    /// <inheritdoc />
+    public override bool CanWrite => true;
+
     public override string VolumeLabel
     {
         get { return Context.SuperBlock.VolumeName; }
     }
+
+    public SuperBlock SuperBlock => Context.SuperBlock;
 
     public UnixFileSystemInfo GetUnixFileInfo(string path)
     {
@@ -160,14 +167,28 @@ internal sealed class VfsExtFileSystem : VfsReadOnlyFileSystem<DirEntry, File, D
         {
             return new Directory(Context, dirEntry.Record.Inode, inode);
         }
+
         if (dirEntry.Record.FileType == DirectoryRecord.FileTypeSymlink)
         {
             return new Symlink(Context, dirEntry.Record.Inode, inode);
         }
+
         return new File(Context, dirEntry.Record.Inode, inode);
     }
 
     private Inode GetInode(uint inodeNum)
+    {
+        var superBlock = Context.SuperBlock;
+
+        Span<byte> inodeData = stackalloc byte[superBlock.InodeSize];
+
+        Context.RawStream.Position = GetInodePosition(inodeNum);
+        StreamUtilities.ReadExact(Context.RawStream, inodeData);
+
+        return EndianUtilities.ToStruct<Inode>(inodeData);
+    }
+
+    public long GetInodePosition(uint inodeNum)
     {
         var index = inodeNum - 1;
 
@@ -181,14 +202,8 @@ internal sealed class VfsExtFileSystem : VfsReadOnlyFileSystem<DirEntry, File, D
         var block = groupOffset / inodesPerBlock;
         var blockOffset = groupOffset - block * inodesPerBlock;
 
-        Context.RawStream.Position = (inodeBlockGroup.InodeTableBlock + block) * (long)superBlock.BlockSize +
-                                     blockOffset * superBlock.InodeSize;
-
-        Span<byte> inodeData = stackalloc byte[superBlock.InodeSize];
-        
-        StreamUtilities.ReadExact(Context.RawStream, inodeData);
-
-        return EndianUtilities.ToStruct<Inode>(inodeData);
+        return (inodeBlockGroup.InodeTableBlock + block) * (long)superBlock.BlockSize +
+               blockOffset * superBlock.InodeSize;
     }
 
     private BlockGroup GetBlockGroup(uint index)
@@ -210,13 +225,15 @@ internal sealed class VfsExtFileSystem : VfsReadOnlyFileSystem<DirEntry, File, D
             ulong journalSize = 0;
             if (superBlock.OverheadBlocksCount != 0)
             {
-                overhead = superBlock.OverheadBlocksCount* superBlock.BlockSize;
+                overhead = superBlock.OverheadBlocksCount * superBlock.BlockSize;
             }
+
             if (Context.JournalSuperblock != null)
             {
-                journalSize = Context.JournalSuperblock.MaxLength* Context.JournalSuperblock.BlockSize;
+                journalSize = Context.JournalSuperblock.MaxLength * Context.JournalSuperblock.BlockSize;
             }
-            return (long) (superBlock.BlockSize* blockCount - (inodeSize + overhead + journalSize));
+
+            return (long)(superBlock.BlockSize * blockCount - (inodeSize + overhead + journalSize));
         }
     }
 
@@ -242,9 +259,10 @@ internal sealed class VfsExtFileSystem : VfsReadOnlyFileSystem<DirEntry, File, D
                 //ext4 64Bit Feature
                 foreach (BlockGroup64 blockGroup in _blockGroups)
                 {
-                    free += (uint) (blockGroup.FreeBlocksCountHigh << 16 | blockGroup.FreeBlocksCount);
+                    free += (uint)(blockGroup.FreeBlocksCountHigh << 16 | blockGroup.FreeBlocksCount);
                 }
-                return (long) (superBlock.BlockSize* free);
+
+                return (long)(superBlock.BlockSize * free);
             }
             else
             {
@@ -254,7 +272,8 @@ internal sealed class VfsExtFileSystem : VfsReadOnlyFileSystem<DirEntry, File, D
                 {
                     free += blockGroup.FreeBlocksCount;
                 }
-                return (long) (superBlock.BlockSize* free);
+
+                return (long)(superBlock.BlockSize * free);
             }
         }
     }
